@@ -1,15 +1,15 @@
 const axios = require('axios')
 const md5 = require('crypto-js').MD5
-
+var sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 function KsGet(url, method = "get", data = null) {
     return new Promise(async (resolve) => {
         try {
             const headers = {
-                'client-identifier': config.kaoshibao.clientid,
-                authorization: config.kaoshibao.authorization
+                'client-identifier': config.ksb.clientid,
+                authorization: config.ksb.authorization
             }
             timestamp = new Date().getTime().toString()
-            headers.sign = md5("12b6bb84e093532fb72b4d65fec3f00b" + config.kaoshibao.clientid + url + timestamp + '12b6bb84e093532fb72b4d65fec3f00b').toString()
+            headers.sign = md5("12b6bb84e093532fb72b4d65fec3f00b" + config.ksb.clientid + url + timestamp + '12b6bb84e093532fb72b4d65fec3f00b').toString()
             headers.timestamp = timestamp
             let res = await axios({
                 method,
@@ -35,11 +35,15 @@ function KsGet(url, method = "get", data = null) {
 
 
 async function task() {
-    idss = [];ans = null;pid = 876501;Info = "";
+    idss = [];
+    ans = null;
+    pid = 876501;
+    Info = ""
     let signres = await KsGet("/user/PointCenter/sign") //签到 写别的也这样
     if (signres && signres.code == 200) Info = `签到成功,获得${signres.data.point}积分，连签 ${signres.data.continue_days}天`
     else Info = signres.msg
-    let task = await KsGet("/user/PointCenter/home") //获取任务列表  
+    let task = await KsGet("/user/PointCenter/home") //获取任务列表
+    // console.log(task.data.tasks)
     if (task) {
         taskList = ((task && task.code == 200) ? task.data.tasks : []).filter(x => x.task_id == 10004 || x.task_id == 10010)
     }
@@ -53,7 +57,9 @@ async function task() {
                 //获取题目id
                 if (ids && ids.code == 200) idss = ids.data.rows
                 console.log(`共获取到 ${idss.length}道题目`)
+
                 for (i = 0; i < 201; i) {
+                    
                     var n = Math.floor(Math.random() * idss.length + 1) - 1;
                     //   console.log(`抽取题目中： ${idss[n]}\n去查询答案`)
                     let answer = await KsGet("/questions/ids", "post", {
@@ -62,6 +68,7 @@ async function task() {
                     if (answer.code == 200) {
                         ans = answer.data[0].answer
                         //console.log(`Q：${answer.data[0].question}\nA：${answer.data[0].analysis}`)
+
                     }
                     if (ans) {
                         let r = await KsGet("/questions/reportResult", "post", {
@@ -74,6 +81,9 @@ async function task() {
                         if (r.code == 200) console.log(`答题进度 ${i++}/200`)
 
                     }
+                    let t = Math.round(Math.random()*100*(60-20))+3000
+                    console.log("随机延迟 秒 ："+t/1000)
+                    await sleep(t)
                 }
                 await getprize(task.id, task.point)
             } else await KsGet("/user/PointCenter/taskCallback", "post", {
@@ -97,6 +107,7 @@ async function task() {
     if (baseInfo && baseInfo.code == 200) {
         sign = baseInfo.data.is_signed == 1 ? "已签" : "未签"
         Info = `今日${sign} ，连签${baseInfo.data.continue_days}，总积分 ${baseInfo.data.user_point} `
+
     }
     return "【考试宝】：" + Info
 }
